@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Property Document Tracker — Maharashtra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --border: #e8e5de;
+  --border-strong: #ccc9c0;
+  --text: #1a1917;
+  --muted: #6b6860;
+  --hint: #a09d96;
+  --accent: #2d5a3d;
+  --accent-light: #e8f2eb;
+  --accent-mid: #4a8c61;
+  --amber: #92570a;
+  --amber-light: #fdf3e3;
+  --red: #8b2020;
+  --red-light: #fdf0f0;
+  --radius: 8px;
+  --radius-lg: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+.top-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo { font-size: 14px; font-weight: 500; color: var(--accent); letter-spacing: 0.02em; display: flex; align-items: center; gap: 8px; }
+.logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.top-actions { display: flex; align-items: center; gap: 10px; }
+.lang-pill { display: flex; border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
+.lang-pill button { font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 4px 12px; border: none; background: transparent; cursor: pointer; color: var(--muted); transition: all .15s; }
+.lang-pill button.active { background: var(--text); color: white; }
+.client-badge { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--muted); background: var(--bg); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); }
+
+.hero {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 2rem 1.5rem 1.5rem;
+}
+.hero-inner { max-width: 860px; margin: 0 auto; }
+.client-name { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+.client-sub { font-size: 14px; color: var(--muted); margin-bottom: 1.5rem; }
+
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+.stat { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1rem; }
+.stat-label { font-size: 11px; color: var(--hint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.stat-value { font-size: 20px; font-weight: 500; }
+.stat-value.green { color: var(--accent); }
+.stat-value.amber { color: var(--amber); }
+
+.progress-wrap { }
+.progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.progress-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .5s ease; }
+
+.main { max-width: 860px; margin: 0 auto; padding: 1.5rem; }
+
+.cat-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.cat-btn {
+  font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 6px 14px;
+  border: 1px solid var(--border); border-radius: 20px; cursor: pointer;
+  background: var(--surface); color: var(--muted); transition: all .15s;
+  white-space: nowrap;
+}
+.cat-btn:hover { border-color: var(--border-strong); color: var(--text); }
+.cat-btn.active { background: var(--text); color: white; border-color: var(--text); }
+.cat-btn .count { font-family: 'DM Mono', monospace; font-size: 10px; opacity: .7; margin-left: 4px; }
+
+.section-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.section-head {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.section-title { font-size: 15px; font-weight: 500; }
+.section-prog { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
+.section-bar { height: 3px; background: var(--border); }
+.section-bar-fill { height: 100%; background: var(--accent-mid); transition: width .4s; }
+
+.doc-item {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.doc-item:last-child { border-bottom: none; }
+.doc-item:hover { background: #faf9f7; }
+
+.doc-check-col {
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 14px;
+}
+.doc-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; }
+.doc-body { padding: 12px 0 12px 0; }
+.doc-name { font-size: 13px; font-weight: 500; line-height: 1.4; margin-bottom: 2px; transition: all .15s; }
+.doc-name.done { text-decoration: line-through; color: var(--hint); }
+.doc-sub { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.doc-note-wrap { margin-top: 6px; }
+.doc-note {
+  width: 100%; font-family: 'DM Sans', sans-serif; font-size: 12px;
+  padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--text); resize: none; line-height: 1.4;
+}
+.doc-note:focus { outline: none; border-color: var(--accent-mid); background: white; }
+.doc-note::placeholder { color: var(--hint); }
+
+.doc-right { padding: 12px 14px 12px 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.status-sel {
+  font-family: 'DM Sans', sans-serif; font-size: 11px;
+  padding: 3px 7px; border: 1px solid var(--border); border-radius: 6px;
+  background: white; color: var(--muted); cursor: pointer;
+  max-width: 110px;
+}
+.badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 500; letter-spacing: 0.02em; white-space: nowrap; }
+.badge-must { background: var(--red-light); color: var(--red); }
+.badge-cond { background: var(--amber-light); color: var(--amber); }
+
+.save-toast {
+  position: fixed; bottom: 1.5rem; right: 1.5rem;
+  background: var(--text); color: white;
+  font-size: 13px; padding: 8px 16px;
+  border-radius: 20px; opacity: 0;
+  transition: opacity .3s;
+  pointer-events: none; z-index: 200;
+}
+.save-toast.show { opacity: 1; }
+
+.setup-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 2rem;
+}
+.setup-card {
+  background: white; border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 2.5rem; max-width: 420px; width: 100%;
+}
+.setup-logo { font-size: 13px; font-weight: 500; color: var(--accent); margin-bottom: 2rem; display: flex; align-items: center; gap: 8px; }
+.setup-title { font-size: 22px; font-weight: 500; margin-bottom: 6px; }
+.setup-sub { font-size: 14px; color: var(--muted); margin-bottom: 2rem; }
+.setup-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: block; }
+.setup-input {
+  width: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--text); margin-bottom: 1rem;
+}
+.setup-input:focus { outline: none; border-color: var(--accent-mid); background: white; }
+.setup-select {
+  width: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--text); margin-bottom: 1.5rem; cursor: pointer;
+}
+.setup-btn {
+  width: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+  padding: 11px; border: none; border-radius: var(--radius);
+  background: var(--accent); color: white; cursor: pointer; transition: opacity .15s;
+}
+.setup-btn:hover { opacity: .88; }
+.setup-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.error-msg { font-size: 13px; color: var(--red); margin-top: .5rem; }
+
+@media (max-width: 600px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .doc-item { grid-template-columns: 36px 1fr; }
+  .doc-right { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Setup screen (shown when no client ID in URL) -->
+<div class="setup-screen" id="setup-screen" style="display:none">
+  <div class="setup-card">
+    <div class="setup-logo"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block"></span> MH Property Tracker</div>
+    <h1 class="setup-title">Start your tracker</h1>
+    <p class="setup-sub">Enter your details to create a personal tracker link you can bookmark and share.</p>
+    <label class="setup-label">Your name / आपका नाम</label>
+    <input class="setup-input" id="setup-name" type="text" placeholder="e.g. Rajesh Sharma">
+    <label class="setup-label">Transaction type / लेनदेन का प्रकार</label>
+    <select class="setup-select" id="setup-cat">
+      <option value="builder">Buy from builder / बिल्डर से खरीद</option>
+      <option value="resale">Buy resale / पुनर्विक्रय खरीद</option>
+      <option value="sell">Sell property / संपत्ति बेचें</option>
+      <option value="rental">Rental agreement / किराया अनुबंध</option>
+      <option value="gift">Gift deed / उपहार पत्र</option>
+      <option value="inheritance">Inheritance / विरासत</option>
+    </select>
+    <button class="setup-btn" id="setup-btn" onclick="createTracker()">Create my tracker →</button>
+    <div class="error-msg" id="setup-error"></div>
+  </div>
+</div>
+
+<!-- Main tracker (shown when client ID exists) -->
+<div id="main-app" style="display:none">
+  <div class="top-bar">
+    <div class="logo"><span class="logo-dot"></span> MH Property Tracker</div>
+    <div class="top-actions">
+      <div class="lang-pill">
+        <button onclick="setLang('en')" id="btn-en" class="active">EN</button>
+        <button onclick="setLang('hi')" id="btn-hi">हि</button>
+      </div>
+      <span class="client-badge" id="client-id-badge"></span>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-inner">
+      <div class="client-name" id="hero-name">Loading...</div>
+      <div class="client-sub" id="hero-sub"></div>
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label" id="lbl-total">Total</div><div class="stat-value" id="val-total">—</div></div>
+        <div class="stat"><div class="stat-label" id="lbl-obtained">Obtained</div><div class="stat-value green" id="val-obtained">—</div></div>
+        <div class="stat"><div class="stat-label" id="lbl-pending">Pending</div><div class="stat-value amber" id="val-pending">—</div></div>
+        <div class="stat"><div class="stat-label" id="lbl-pct">Complete</div><div class="stat-value" id="val-pct">—</div></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-meta">
+          <span id="lbl-progress">Overall progress</span>
+          <span id="val-progress-pct">0%</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="master-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="cat-nav" id="cat-nav"></div>
+    <div class="section-card">
+      <div class="section-head">
+        <span class="section-title" id="cat-title"></span>
+        <span class="section-prog" id="cat-prog"></span>
+      </div>
+      <div class="section-bar"><div class="section-bar-fill" id="cat-bar-fill" style="width:0%"></div></div>
+      <div id="doc-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="save-toast" id="save-toast">Saved ✓</div>
+
+<script>
+// ── CONFIG ── Replace these with your actual Supabase credentials
+const SUPABASE_URL =https://rxwlbupuykpwqexikeih.supabase.co
+const SUPABASE_ANON_KEY =eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4d2xidXB1eWtwd3FleGlrZWloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTY3OTUsImV4cCI6MjA5NTYzMjc5NX0.ty0MPgoW0XtUg6pMqmGxigxXHEIwX69W1GpfMODFAuc
+
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── DATA ──
+const CATS = ['builder','resale','sell','rental','gift','inheritance'];
+
+const L = {
+  en: {
+    total:'Total docs', obtained:'Obtained', pending:'Pending', pct:'Complete',
+    progress:'Overall progress', mandatory:'Mandatory', conditional:'Conditional',
+    notes:'Add notes, dates, officer name...',
+    status:['Pending','Obtained','Not needed'],
+    catNames:['Buy from builder','Buy resale','Sell property','Rental agreement','Gift deed','Inheritance'],
+    docs:{
+      builder:[
+        {n:'Aadhaar card (buyer + seller)',s:'Both parties, original + 2 copies',m:true},
+        {n:'PAN card (buyer + seller)',s:'Mandatory for TDS; Form 60 if no PAN',m:true},
+        {n:'Passport-size photos',s:'4 recent photos per party',m:true},
+        {n:'RERA registration certificate',s:'Verify on maharerait.mahaonline.gov.in',m:true},
+        {n:'Approved building plan',s:'Your flat layout must match this',m:true},
+        {n:'Commencement certificate (CC)',s:'Must cover your specific wing/tower',m:true},
+        {n:'Agreement for sale (registered)',s:'0.1% stamp duty; mandatory under MOFA',m:true},
+        {n:'Allotment letter from builder',s:'Specifies flat number, area, price',m:true},
+        {n:"Builder's title certificate",s:'Get independently verified by your own lawyer',m:true},
+        {n:'Occupancy certificate (OC)',s:'Do not take possession without OC',m:true},
+        {n:'Property card / CTS number',s:'From City Survey Office',m:true},
+        {n:'Stamp duty payment proof (GRAS)',s:'5–6% of market value; women get 1% off',m:true},
+        {n:'Registration fee payment proof',s:'1% of property value, max ₹30,000',m:true},
+        {n:'Home loan sanction letter',s:'If purchasing on home loan',m:false},
+        {n:'Mortgage / equitable mortgage deed',s:'0.3% stamp duty; created with bank',m:false},
+        {n:'Society share certificate',s:'After society is formed by builder',m:false},
+        {n:'Conveyance deed to society',s:'Demand land title transfer from builder',m:false},
+        {n:'GST invoice from builder',s:'5% GST (non-affordable), 1% (affordable)',m:false},
+      ],
+      resale:[
+        {n:'Aadhaar card (buyer + seller)',s:'Original + 2 photocopies each party',m:true},
+        {n:'PAN card (buyer + seller)',s:'Both mandatory; Form 60 if no PAN',m:true},
+        {n:'Passport-size photos',s:'4 photos per party',m:true},
+        {n:'Title deed / sale deed chain (30 yrs)',s:'Certified copies from Sub-Registrar',m:true},
+        {n:'Encumbrance certificate (30 yrs)',s:'From IGR Maharashtra portal',m:true},
+        {n:'Property card / 7-12 extract',s:'Must match seller name and property details',m:true},
+        {n:'Mutation / Ferfar entries verified',s:'All transfers recorded in government records',m:true},
+        {n:'Index II for all previous transactions',s:'From Sub-Registrar or IGR portal',m:true},
+        {n:'Society NOC for transfer',s:'Transfer premium capped at ₹25,000',m:true},
+        {n:'Property tax no-dues certificate',s:'From municipal body in seller\'s name',m:true},
+        {n:'Sale deed drafted and registered',s:'Stamp duty 5–6%; registration fee 1%',m:true},
+        {n:'TDS deducted (if value > ₹50L)',s:'Form 26QB within 30 days; Form 16B to seller',m:true},
+        {n:'Bank NOC (if seller had home loan)',s:'Collect original title docs from seller\'s bank',m:false},
+        {n:'Society share certificate (original)',s:'Verify with society independently',m:false},
+        {n:'Home loan documents',s:'Income proof, property docs to bank',m:false},
+        {n:'Capital gains computation',s:'LTCG at 20% with indexation (held >24 months)',m:false},
+      ],
+      sell:[
+        {n:'Original sale deed + title chain',s:'All previous deeds for 30+ years',m:true},
+        {n:'Property card / mutation records',s:'In your name and up to date',m:true},
+        {n:'Encumbrance certificate',s:'Confirms no mortgage or dispute exists',m:true},
+        {n:'Property tax no-dues certificate',s:'From PMC / BMC / NMC etc.',m:true},
+        {n:'Society NOC',s:'Apply early — takes 2–4 weeks',m:true},
+        {n:'PAN card',s:'For capital gains and TDS deduction',m:true},
+        {n:'Aadhaar card',s:'For identity verification at registration',m:true},
+        {n:'Bank NOC + original title documents',s:'If you had a home loan — close it first',m:false},
+        {n:'Capital gains computation (with CA)',s:'Check Section 54 exemption eligibility',m:false},
+        {n:'Power of attorney',s:'Only if selling through an agent; must be registered',m:false},
+        {n:'Society share certificate (original)',s:'Hand over to buyer at registration',m:false},
+      ],
+      rental:[
+        {n:'Aadhaar card (landlord + tenant)',s:'Original + photocopy each',m:true},
+        {n:'PAN card (landlord)',s:'For rental income ITR filing',m:true},
+        {n:'Leave and license agreement drafted',s:'Use L&L not lease — stronger protection',m:true},
+        {n:'Stamp duty paid on agreement',s:'0.25% of total rent + deposit (12 months)',m:true},
+        {n:'Agreement registered',s:'Online via IGR portal if tenure >11 months',m:true},
+        {n:'Police verification of tenant',s:'Mandatory in Maharashtra; local police station',m:true},
+        {n:"Tenant's identity proof collected",s:'Aadhaar, PAN, employment proof',m:true},
+        {n:'Security deposit receipt issued',s:'Document amount and refund conditions clearly',m:true},
+        {n:'Passport-size photos (both parties)',s:'2 photos each for registration',m:false},
+        {n:'Utility bill proof of property',s:'To verify landlord identity and ownership',m:false},
+      ],
+      gift:[
+        {n:'Aadhaar card (donor + donee)',s:'Original + 2 copies each',m:true},
+        {n:'PAN card (both parties)',s:'Required for tax compliance',m:true},
+        {n:'Gift deed drafted by lawyer',s:'Specifies donor, donee, and full property description',m:true},
+        {n:'Stamp duty paid',s:'3% blood relatives; 5% others; check ready reckoner',m:true},
+        {n:'Gift deed registered at Sub-Registrar',s:'Both present; 2 witnesses per side',m:true},
+        {n:'Original title deed of property',s:"Proof of donor's ownership",m:true},
+        {n:"Property card / mutation in donor's name",s:'Must be current and accurate',m:true},
+        {n:'Mutation updated after registration',s:'Apply at Talathi / municipal office',m:true},
+        {n:'Income tax implication review',s:'Gifts from non-relatives >₹50k are taxable',m:false},
+        {n:'Society NOC (if flat in CHS)',s:'Required for transfer in housing society',m:false},
+      ],
+      inheritance:[
+        {n:'Death certificate of deceased',s:'From municipal body — needed for all steps',m:true},
+        {n:'Legal heir certificate',s:'From Tehsildar office',m:true},
+        {n:'Aadhaar and PAN of all heirs',s:'Originals + copies of each',m:true},
+        {n:'Original property documents',s:'Sale deed, property card, mutation records',m:true},
+        {n:'Mutation updated in revenue records',s:'Submit death cert + heir cert at Talathi',m:true},
+        {n:'Society membership transferred',s:'Submit heir cert and death cert to CHS',m:true},
+        {n:'Property card updated (City Survey)',s:'Apply with all supporting documents',m:true},
+        {n:'Probate (if Will exists)',s:'From High Court; mandatory for Mumbai city Wills',m:false},
+        {n:'Succession certificate',s:'Civil court; needed if contested',m:false},
+        {n:'Relinquishment deed',s:'If other heirs waive share; stamp duty 3–5%',m:false},
+        {n:'Property tax records updated',s:'Municipal body — transfer to heir name',m:false},
+        {n:'Home loan closure (if any)',s:'Notify bank; check life insurance cover',m:false},
+      ]
+    }
+  },
+  hi: {
+    total:'कुल दस्तावेज़', obtained:'प्राप्त हुए', pending:'बाकी हैं', pct:'पूर्णता',
+    progress:'कुल प्रगति', mandatory:'अनिवार्य', conditional:'वैकल्पिक',
+    notes:'नोट्स, तारीख, अधिकारी का नाम...',
+    status:['बाकी है','प्राप्त हुआ','आवश्यक नहीं'],
+    catNames:['बिल्डर से खरीद','पुनर्विक्रय खरीद','संपत्ति बेचें','किराया अनुबंध','उपहार पत्र','विरासत'],
+    docs:{
+      builder:[
+        {n:'आधार कार्ड (खरीदार + विक्रेता)',s:'दोनों पक्ष, मूल + 2 प्रतियाँ',m:true},
+        {n:'पैन कार्ड (खरीदार + विक्रेता)',s:'TDS के लिए अनिवार्य; पैन न हो तो Form 60',m:true},
+        {n:'पासपोर्ट साइज़ फोटो',s:'प्रति पक्ष 4 हाल की फोटो',m:true},
+        {n:'RERA पंजीकरण प्रमाणपत्र',s:'maharerait.mahaonline.gov.in पर सत्यापित करें',m:true},
+        {n:'स्वीकृत भवन योजना',s:'आपके फ्लैट का लेआउट इससे मेल खाना चाहिए',m:true},
+        {n:'प्रारंभ प्रमाणपत्र (CC)',s:'आपके विंग/टॉवर को कवर करना चाहिए',m:true},
+        {n:'पंजीकृत बिक्री अनुबंध',s:'0.1% स्टांप शुल्क; MOFA के तहत अनिवार्य',m:true},
+        {n:'बिल्डर का आवंटन पत्र',s:'फ्लैट नंबर, क्षेत्र, मूल्य दर्शाता है',m:true},
+        {n:'बिल्डर का शीर्षक प्रमाणपत्र',s:'अपने वकील से स्वतंत्र रूप से सत्यापित करें',m:true},
+        {n:'अधिवास प्रमाणपत्र (OC)',s:'OC के बिना कब्ज़ा न लें',m:true},
+        {n:'संपत्ति कार्ड / CTS नंबर',s:'शहर सर्वेक्षण कार्यालय से',m:true},
+        {n:'स्टांप शुल्क भुगतान प्रमाण (GRAS)',s:'बाजार मूल्य का 5–6%; महिलाओं को 1% छूट',m:true},
+        {n:'पंजीकरण शुल्क भुगतान प्रमाण',s:'संपत्ति मूल्य का 1%, अधिकतम ₹30,000',m:true},
+        {n:'होम लोन स्वीकृति पत्र',s:'यदि होम लोन पर खरीद रहे हैं',m:false},
+        {n:'बंधक विलेख',s:'0.3% स्टांप शुल्क; बैंक के साथ',m:false},
+        {n:'सोसाइटी शेयर प्रमाणपत्र',s:'बिल्डर द्वारा सोसाइटी गठन के बाद',m:false},
+        {n:'सोसाइटी को हस्तांतरण विलेख',s:'बिल्डर से भूमि शीर्षक हस्तांतरण माँगें',m:false},
+        {n:'बिल्डर से GST चालान',s:'5% GST (सामान्य), 1% (किफायती)',m:false},
+      ],
+      resale:[
+        {n:'आधार कार्ड (खरीदार + विक्रेता)',s:'मूल + 2 फोटोकॉपी प्रत्येक पक्ष',m:true},
+        {n:'पैन कार्ड (खरीदार + विक्रेता)',s:'दोनों अनिवार्य; पैन न हो तो Form 60',m:true},
+        {n:'पासपोर्ट साइज़ फोटो',s:'प्रति पक्ष 4 फोटो',m:true},
+        {n:'शीर्षक विलेख श्रृंखला (30 वर्ष)',s:'उप-पंजीयक से प्रमाणित प्रतियाँ',m:true},
+        {n:'बाधा प्रमाणपत्र (30 वर्ष)',s:'igrmaharashtra.gov.in से',m:true},
+        {n:'संपत्ति कार्ड / 7-12 उतारा',s:'विक्रेता नाम और संपत्ति विवरण मेल खाना चाहिए',m:true},
+        {n:'म्यूटेशन / फेरफार प्रविष्टियाँ सत्यापित',s:'सरकारी अभिलेखों में सभी हस्तांतरण',m:true},
+        {n:'सभी लेनदेन के लिए Index II',s:'उप-पंजीयक या IGR पोर्टल से',m:true},
+        {n:'सोसाइटी NOC (हस्तांतरण के लिए)',s:'हस्तांतरण प्रीमियम ₹25,000 तक सीमित',m:true},
+        {n:'संपत्ति कर बकाया रहित प्रमाणपत्र',s:'नगर निगम से विक्रेता के नाम पर',m:true},
+        {n:'बिक्री विलेख पंजीकृत',s:'स्टांप 5–6%; पंजीकरण 1%',m:true},
+        {n:'TDS कटौती (यदि मूल्य ₹50L से ऊपर)',s:'30 दिन में Form 26QB; विक्रेता को Form 16B',m:true},
+        {n:'बैंक NOC (यदि विक्रेता का होम लोन था)',s:'विक्रेता के बैंक से मूल दस्तावेज़ लें',m:false},
+        {n:'सोसाइटी शेयर प्रमाणपत्र (मूल)',s:'सोसाइटी से स्वतंत्र रूप से सत्यापित करें',m:false},
+        {n:'होम लोन दस्तावेज़',s:'आय प्रमाण, संपत्ति दस्तावेज़ बैंक को',m:false},
+        {n:'पूंजीगत लाभ गणना',s:'24 महीने से अधिक धारण पर LTCG 20%',m:false},
+      ],
+      sell:[
+        {n:'मूल बिक्री विलेख + शीर्षक श्रृंखला',s:'30+ वर्षों के सभी पिछले विलेख',m:true},
+        {n:'संपत्ति कार्ड / म्यूटेशन रिकॉर्ड',s:'आपके नाम पर और अद्यतन',m:true},
+        {n:'बाधा प्रमाणपत्र',s:'कोई बंधक या विवाद नहीं की पुष्टि',m:true},
+        {n:'संपत्ति कर बकाया रहित प्रमाणपत्र',s:'PMC / BMC / NMC आदि से',m:true},
+        {n:'सोसाइटी NOC',s:'जल्दी आवेदन करें — 2–4 सप्ताह लगते हैं',m:true},
+        {n:'पैन कार्ड',s:'पूंजीगत लाभ और TDS के लिए',m:true},
+        {n:'आधार कार्ड',s:'पंजीकरण पर पहचान सत्यापन के लिए',m:true},
+        {n:'बैंक NOC + मूल शीर्षक दस्तावेज़',s:'यदि होम लोन था — पहले बंद करें',m:false},
+        {n:'पूंजीगत लाभ गणना (CA के साथ)',s:'धारा 54 छूट की पात्रता जाँचें',m:false},
+        {n:'मुख्तारनामा',s:'एजेंट के माध्यम से बेचने पर; पंजीकृत होना चाहिए',m:false},
+        {n:'सोसाइटी शेयर प्रमाणपत्र (मूल)',s:'पंजीकरण पर खरीदार को सौंपें',m:false},
+      ],
+      rental:[
+        {n:'आधार कार्ड (मकान मालिक + किरायेदार)',s:'मूल + फोटोकॉपी प्रत्येक',m:true},
+        {n:'पैन कार्ड (मकान मालिक)',s:'किराया आय ITR दाखिल करने के लिए',m:true},
+        {n:'लाइसेंस अनुबंध तैयार',s:'पट्टे के बजाय L&L का उपयोग करें',m:true},
+        {n:'अनुबंध पर स्टांप शुल्क',s:'कुल किराया + जमा का 0.25% (12 माह)',m:true},
+        {n:'अनुबंध पंजीकृत',s:'11 महीने से अधिक पर IGR पोर्टल पर ऑनलाइन',m:true},
+        {n:'किरायेदार का पुलिस सत्यापन',s:'महाराष्ट्र में अनिवार्य; स्थानीय थाने में',m:true},
+        {n:'किरायेदार का पहचान प्रमाण',s:'आधार, पैन, रोजगार प्रमाण',m:true},
+        {n:'सुरक्षा जमा रसीद जारी',s:'राशि और वापसी शर्तें स्पष्ट रूप से दर्ज करें',m:true},
+        {n:'दोनों पक्षों के फोटो',s:'पंजीकरण के लिए प्रत्येक 2 फोटो',m:false},
+        {n:'संपत्ति का उपयोगिता बिल प्रमाण',s:'मकान मालिक की पहचान और स्वामित्व सत्यापित करने के लिए',m:false},
+      ],
+      gift:[
+        {n:'आधार कार्ड (दाता + प्राप्तकर्ता)',s:'मूल + 2 प्रतियाँ प्रत्येक',m:true},
+        {n:'पैन कार्ड (दोनों पक्ष)',s:'कर अनुपालन के लिए आवश्यक',m:true},
+        {n:'वकील द्वारा उपहार पत्र तैयार',s:'दाता, प्राप्तकर्ता और संपत्ति का पूरा विवरण',m:true},
+        {n:'स्टांप शुल्क भुगतान',s:'रक्त संबंधी 3%; अन्य 5%; रेडी रेकनर जाँचें',m:true},
+        {n:'उप-पंजीयक के यहाँ उपहार पत्र पंजीकृत',s:'दोनों उपस्थित; प्रत्येक पक्ष 2 गवाह',m:true},
+        {n:'संपत्ति का मूल शीर्षक विलेख',s:'दाता के स्वामित्व का प्रमाण',m:true},
+        {n:'संपत्ति कार्ड / म्यूटेशन (दाता के नाम)',s:'वर्तमान और सटीक होना चाहिए',m:true},
+        {n:'पंजीकरण के बाद म्यूटेशन अद्यतन',s:'तलाठी / नगर कार्यालय में आवेदन करें',m:true},
+        {n:'आयकर प्रभाव समीक्षा',s:'गैर-संबंधी से >₹50k उपहार कर योग्य',m:false},
+        {n:'सोसाइटी NOC (फ्लैट के लिए)',s:'आवासीय सोसाइटी में संपत्ति होने पर',m:false},
+      ],
+      inheritance:[
+        {n:'मृतक का मृत्यु प्रमाणपत्र',s:'नगर निगम से — सभी चरणों के लिए आवश्यक',m:true},
+        {n:'कानूनी वारिस प्रमाणपत्र',s:'तहसीलदार कार्यालय से',m:true},
+        {n:'सभी वारिसों का आधार और पैन',s:'मूल + प्रतियाँ',m:true},
+        {n:'मूल संपत्ति दस्तावेज़',s:'बिक्री विलेख, संपत्ति कार्ड, म्यूटेशन',m:true},
+        {n:'राजस्व अभिलेखों में म्यूटेशन अद्यतन',s:'तलाठी के यहाँ मृत्यु प्रमाण + वारिस प्रमाण जमा',m:true},
+        {n:'सोसाइटी सदस्यता हस्तांतरित',s:'CHS को वारिस प्रमाण और मृत्यु प्रमाण जमा करें',m:true},
+        {n:'संपत्ति कार्ड अद्यतन',s:'सहायक दस्तावेजों के साथ शहर सर्वेक्षण कार्यालय',m:true},
+        {n:'प्रोबेट (यदि वसीयत है)',s:'उच्च न्यायालय से; मुंबई शहर वसीयत के लिए अनिवार्य',m:false},
+        {n:'उत्तराधिकार प्रमाणपत्र',s:'विवादित होने पर सिविल न्यायालय से',m:false},
+        {n:'त्याग विलेख',s:'यदि अन्य वारिस हिस्सा छोड़ें; 3–5% स्टांप',m:false},
+        {n:'संपत्ति कर रिकॉर्ड अद्यतन',s:'वारिस के नाम पर नगर निगम में',m:false},
+        {n:'होम लोन बंद करना (यदि कोई हो)',s:'बैंक को सूचित करें; बीमा/जीवन कवर जाँचें',m:false},
+      ]
+    }
+  }
+};
+
+// ── STATE ──
+let lang = 'en';
+let clientId = null;
+let clientData = null;
+let activeCat = 'builder';
+let docState = {};
+let saveTimer = null;
+
+// ── INIT ──
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  clientId = params.get('id');
+
+  if (!clientId) {
+    document.getElementById('setup-screen').style.display = 'flex';
+    return;
+  }
+
+  document.getElementById('main-app').style.display = 'block';
+
+  // Load from Supabase
+  const { data, error } = await sb
+    .from('trackers')
+    .select('*')
+    .eq('client_id', clientId)
+    .single();
+
+  if (error || !data) {
+    // Fallback to localStorage
+    const local = localStorage.getItem('tracker_' + clientId);
+    if (local) {
+      const parsed = JSON.parse(local);
+      clientData = parsed;
+      docState = parsed.doc_state || {};
+      activeCat = parsed.cat || 'builder';
+    } else {
+      document.getElementById('setup-screen').style.display = 'flex';
+      document.getElementById('main-app').style.display = 'none';
+      return;
+    }
+  } else {
+    clientData = data;
+    docState = data.doc_state || {};
+    activeCat = data.cat || 'builder';
+  }
+
+  document.getElementById('client-id-badge').textContent = clientId;
+  document.getElementById('hero-name').textContent = clientData.name;
+  renderAll();
+}
+
+// ── CREATE TRACKER ──
+async function createTracker() {
+  const name = document.getElementById('setup-name').value.trim();
+  const cat = document.getElementById('setup-cat').value;
+  if (!name) { document.getElementById('setup-error').textContent = 'Please enter your name.'; return; }
+
+  const btn = document.getElementById('setup-btn');
+  btn.disabled = true; btn.textContent = 'Creating...';
+
+  const id = Math.random().toString(36).substr(2,8).toUpperCase();
+  const payload = { client_id: id, name, cat, doc_state: {}, created_at: new Date().toISOString() };
+
+  // Try Supabase, fallback to localStorage
+  const { error } = await sb.from('trackers').insert(payload);
+  localStorage.setItem('tracker_' + id, JSON.stringify(payload));
+
+  window.location.href = `?id=${id}`;
+}
+
+// ── RENDER ──
+function t(k) { return L[lang][k]; }
+
+function setLang(l) {
+  lang = l;
+  document.getElementById('btn-en').classList.toggle('active', l === 'en');
+  document.getElementById('btn-hi').classList.toggle('active', l === 'hi');
+  renderAll();
+}
+
+function renderAll() {
+  const docs = L[lang].docs;
+  const catNames = t('catNames');
+  document.getElementById('lbl-total').textContent = t('total');
+  document.getElementById('lbl-obtained').textContent = t('obtained');
+  document.getElementById('lbl-pending').textContent = t('pending');
+  document.getElementById('lbl-pct').textContent = t('pct');
+  document.getElementById('lbl-progress').textContent = t('progress');
+
+  // Category sub for hero
+  const catIdx = CATS.indexOf(activeCat);
+  document.getElementById('hero-sub').textContent = catNames[catIdx];
+
+  // Stats
+  let total = 0, obtained = 0;
+  CATS.forEach(cat => {
+    L.en.docs[cat].forEach((_, i) => {
+      const s = getState(cat, i);
+      if (s.status !== 2) { total++; if (s.status === 1) obtained++; }
+    });
+  });
+  const pending = total - obtained;
+  const pct = total ? Math.round(obtained / total * 100) : 0;
+  document.getElementById('val-total').textContent = total;
+  document.getElementById('val-obtained').textContent = obtained;
+  document.getElementById('val-pending').textContent = pending;
+  document.getElementById('val-pct').textContent = pct + '%';
+  document.getElementById('val-progress-pct').textContent = pct + '%';
+  document.getElementById('master-fill').style.width = pct + '%';
+
+  // Cat nav
+  document.getElementById('cat-nav').innerHTML = CATS.map((k, i) => {
+    const catDocs = L.en.docs[k];
+    let done = 0, tot = 0;
+    catDocs.forEach((_, j) => { const s = getState(k, j); if (s.status !== 2) { tot++; if (s.status === 1) done++; } });
+    return `<button class="cat-btn ${k === activeCat ? 'active' : ''}" onclick="switchCat('${k}')">${catNames[i]}<span class="count">${done}/${tot}</span></button>`;
+  }).join('');
+
+  renderDocList();
+}
+
+function renderDocList() {
+  const docs = L[lang].docs[activeCat];
+  const catIdx = CATS.indexOf(activeCat);
+  document.getElementById('cat-title').textContent = L[lang].catNames[catIdx];
+
+  let shown = 0, done = 0;
+  docs.forEach((_, i) => {
+    const s = getState(activeCat, i);
+    if (s.status !== 2) { shown++; if (s.status === 1) done++; }
+  });
+  const pct = shown ? Math.round(done / shown * 100) : 0;
+  document.getElementById('cat-prog').textContent = `${done} / ${shown}  •  ${pct}%`;
+  document.getElementById('cat-bar-fill').style.width = pct + '%';
+
+  const statuses = t('status');
+  document.getElementById('doc-list').innerHTML = docs.map((d, i) => {
+    const s = getState(activeCat, i);
+    const dim = s.status === 2;
+    return `<div class="doc-item" style="${dim ? 'opacity:.35' : ''}">
+      <div class="doc-check-col">
+        <input type="checkbox" class="doc-check" ${s.status === 1 ? 'checked' : ''} onchange="toggleCheck(${i}, this.checked)">
+      </div>
+      <div class="doc-body">
+        <div class="doc-name ${s.status === 1 ? 'done' : ''}">${d.n}</div>
+        <div class="doc-sub">${d.s}</div>
+        <div class="doc-note-wrap">
+          <textarea class="doc-note" rows="1" placeholder="${t('notes')}" onchange="saveNote(${i}, this.value)">${s.note || ''}</textarea>
+        </div>
+      </div>
+      <div class="doc-right">
+        <select class="status-sel" onchange="changeStatus(${i}, parseInt(this.value))">
+          ${statuses.map((st, si) => `<option value="${si}" ${s.status === si ? 'selected' : ''}>${st}</option>`).join('')}
+        </select>
+        <span class="badge ${d.m ? 'badge-must' : 'badge-cond'}">${d.m ? t('mandatory') : t('conditional')}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getState(cat, idx) {
+  if (!docState[cat]) docState[cat] = {};
+  if (!docState[cat][idx]) docState[cat][idx] = { status: 0, note: '' };
+  return docState[cat][idx];
+}
+
+function switchCat(cat) { activeCat = cat; renderAll(); }
+
+function toggleCheck(idx, checked) {
+  getState(activeCat, idx).status = checked ? 1 : 0;
+  renderAll();
+  schedSave();
+}
+
+function changeStatus(idx, val) {
+  getState(activeCat, idx).status = val;
+  renderAll();
+  schedSave();
+}
+
+function saveNote(idx, val) {
+  getState(activeCat, idx).note = val;
+  schedSave();
+}
+
+function schedSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(persist, 800);
+}
+
+async function persist() {
+  if (!clientId) return;
+  const payload = { doc_state: docState, updated_at: new Date().toISOString() };
+  localStorage.setItem('tracker_' + clientId, JSON.stringify({ ...clientData, doc_state: docState }));
+  await sb.from('trackers').update(payload).eq('client_id', clientId);
+  const toast = document.getElementById('save-toast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+init();
+</script>
+</body>
+</html>

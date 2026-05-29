@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — MH Property Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #f7f6f2; --surface: #fff; --border: #e8e5de; --border-strong: #ccc9c0;
+  --text: #1a1917; --muted: #6b6860; --hint: #a09d96;
+  --accent: #2d5a3d; --accent-light: #e8f2eb;
+  --amber: #92570a; --amber-light: #fdf3e3;
+  --red: #8b2020; --red-light: #fdf0f0;
+  --radius: 8px; --radius-lg: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); }
+
+.top-bar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 2rem; height: 56px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { font-size: 14px; font-weight: 500; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+.logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.admin-badge { font-size: 11px; background: #1a1917; color: white; padding: 3px 10px; border-radius: 20px; font-family: 'DM Mono', monospace; }
+.new-btn {
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+  padding: 7px 16px; background: var(--accent); color: white; border: none;
+  border-radius: var(--radius); cursor: pointer; transition: opacity .15s;
+}
+.new-btn:hover { opacity: .85; }
+
+.page { max-width: 1000px; margin: 0 auto; padding: 2rem 1.5rem; }
+.page-header { margin-bottom: 2rem; }
+.page-title { font-size: 24px; font-weight: 500; margin-bottom: 4px; }
+.page-sub { font-size: 14px; color: var(--muted); }
+
+.summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 2rem; }
+.sum-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .875rem 1rem; }
+.sum-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--hint); margin-bottom: 4px; }
+.sum-val { font-size: 22px; font-weight: 500; }
+
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.table-head { display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr 80px 80px; gap: 0; padding: 10px 1.25rem; border-bottom: 1px solid var(--border); background: var(--bg); }
+.table-head span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--hint); }
+
+.client-row {
+  display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr 80px 80px;
+  gap: 0; padding: 14px 1.25rem; border-bottom: 1px solid var(--border);
+  align-items: center; transition: background .1s;
+}
+.client-row:last-child { border-bottom: none; }
+.client-row:hover { background: #faf9f7; }
+
+.client-name { font-size: 14px; font-weight: 500; }
+.client-id { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--hint); margin-top: 2px; }
+.cat-tag { font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); display: inline-block; }
+.prog-col { display: flex; align-items: center; gap: 8px; }
+.mini-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.mini-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+.prog-pct { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--muted); min-width: 34px; }
+.date-cell { font-size: 12px; color: var(--muted); }
+.action-link { font-size: 12px; color: var(--accent); text-decoration: none; font-weight: 500; }
+.action-link:hover { text-decoration: underline; }
+.copy-btn { font-size: 11px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; background: transparent; cursor: pointer; color: var(--muted); font-family: 'DM Sans', sans-serif; transition: all .12s; }
+.copy-btn:hover { background: var(--bg); }
+
+.loading { text-align: center; padding: 3rem; color: var(--muted); font-size: 14px; }
+.empty { text-align: center; padding: 3rem; color: var(--muted); font-size: 14px; }
+
+/* New client modal */
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 200; align-items: center; justify-content: center; }
+.modal-backdrop.open { display: flex; }
+.modal { background: white; border-radius: var(--radius-lg); padding: 2rem; max-width: 400px; width: 90%; }
+.modal-title { font-size: 18px; font-weight: 500; margin-bottom: .5rem; }
+.modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 1.5rem; }
+.modal label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 5px; }
+.modal input, .modal select {
+  width: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px;
+  padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--text); margin-bottom: 1rem;
+}
+.modal input:focus, .modal select:focus { outline: none; border-color: var(--accent); background: white; }
+.modal-actions { display: flex; gap: 8px; }
+.modal-cancel { flex: 1; font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 9px; border: 1px solid var(--border); border-radius: var(--radius); background: transparent; cursor: pointer; color: var(--muted); }
+.modal-create { flex: 2; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; padding: 9px; border: none; border-radius: var(--radius); background: var(--accent); color: white; cursor: pointer; }
+
+.link-result { margin-top: 1rem; padding: .875rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-family: 'DM Mono', monospace; font-size: 12px; word-break: break-all; color: var(--accent); }
+.link-copy-btn { width: 100%; margin-top: .75rem; font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: white; cursor: pointer; color: var(--text); }
+
+@media (max-width: 700px) {
+  .table-head, .client-row { grid-template-columns: 1fr 1fr 60px; }
+  .table-head span:nth-child(2), .table-head span:nth-child(3),
+  .client-row > *:nth-child(2), .client-row > *:nth-child(3) { display: none; }
+  .summary-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo"><span class="logo-dot"></span> MH Property Tracker</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="admin-badge">Admin</span>
+    <button class="new-btn" onclick="openModal()">+ New client</button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">Client dashboard</div>
+    <div class="page-sub">All active property document trackers</div>
+  </div>
+
+  <div class="summary-row">
+    <div class="sum-card"><div class="sum-label">Total clients</div><div class="sum-val" id="s-total">—</div></div>
+    <div class="sum-card"><div class="sum-label">Avg completion</div><div class="sum-val" id="s-avg">—</div></div>
+    <div class="sum-card"><div class="sum-label">Fully complete</div><div class="sum-val" id="s-done" style="color:var(--accent)">—</div></div>
+    <div class="sum-card"><div class="sum-label">Not started</div><div class="sum-val" id="s-zero" style="color:var(--amber)">—</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-head">
+      <span>Client</span>
+      <span>Transaction type</span>
+      <span>Progress</span>
+      <span>Last active</span>
+      <span></span>
+      <span></span>
+    </div>
+    <div id="client-list"><div class="loading">Loading clients...</div></div>
+  </div>
+</div>
+
+<!-- New client modal -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div id="modal-form">
+      <div class="modal-title">Add new client</div>
+      <div class="modal-sub">A unique tracker link will be generated.</div>
+      <label>Client name</label>
+      <input id="m-name" type="text" placeholder="e.g. Rajesh Sharma">
+      <label>Transaction type</label>
+      <select id="m-cat">
+        <option value="builder">Buy from builder</option>
+        <option value="resale">Buy resale property</option>
+        <option value="sell">Sell property</option>
+        <option value="rental">Rental agreement</option>
+        <option value="gift">Gift deed</option>
+        <option value="inheritance">Inheritance</option>
+      </select>
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+        <button class="modal-create" onclick="createClient()">Create tracker</button>
+      </div>
+    </div>
+    <div id="modal-result" style="display:none">
+      <div class="modal-title">Tracker created</div>
+      <div class="modal-sub">Share this link with your client:</div>
+      <div class="link-result" id="new-link"></div>
+      <button class="link-copy-btn" onclick="copyLink()">Copy link</button>
+      <div class="modal-actions" style="margin-top:.75rem">
+        <button class="modal-cancel" onclick="closeAndRefresh()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL =https://rxwlbupuykpwqexikeih.supabase.co
+
+const SUPABASE_ANON_KEY =eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4d2xidXB1eWtwd3FleGlrZWloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTY3OTUsImV4cCI6MjA5NTYzMjc5NX0.ty0MPgoW0XtUg6pMqmGxigxXHEIwX69W1GpfMODFAuc
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const CAT_NAMES = {
+  builder:'Buy from builder', resale:'Buy resale', sell:'Sell property',
+  rental:'Rental agreement', gift:'Gift deed', inheritance:'Inheritance'
+};
+const DOC_COUNTS = { builder:18, resale:16, sell:11, rental:10, gift:10, inheritance:12 };
+
+let newLink = '';
+
+function calcPct(docState, cat) {
+  const total = DOC_COUNTS[cat] || 10;
+  if (!docState || !docState[cat]) return 0;
+  let obtained = 0, notNeeded = 0;
+  Object.values(docState[cat]).forEach(s => {
+    if (s.status === 1) obtained++;
+    if (s.status === 2) notNeeded++;
+  });
+  const effective = total - notNeeded;
+  return effective > 0 ? Math.round(obtained / effective * 100) : 0;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-IN', { day:'numeric', month:'short' });
+}
+
+async function loadClients() {
+  const { data, error } = await sb.from('trackers').select('*').order('created_at', { ascending: false });
+  const list = document.getElementById('client-list');
+
+  if (error || !data || data.length === 0) {
+    list.innerHTML = '<div class="empty">No clients yet. Click "New client" to create the first tracker.</div>';
+    document.getElementById('s-total').textContent = '0';
+    document.getElementById('s-avg').textContent = '0%';
+    document.getElementById('s-done').textContent = '0';
+    document.getElementById('s-zero').textContent = '0';
+    return;
+  }
+
+  let totalPct = 0, done = 0, zero = 0;
+  const rows = data.map(c => {
+    const pct = calcPct(c.doc_state, c.cat);
+    totalPct += pct;
+    if (pct >= 100) done++;
+    if (pct === 0) zero++;
+    const trackerUrl = `${window.location.origin}/tracker/?id=${c.client_id}`;
+    return `<div class="client-row">
+      <div>
+        <div class="client-name">${c.name}</div>
+        <div class="client-id">${c.client_id}</div>
+      </div>
+      <div><span class="cat-tag">${CAT_NAMES[c.cat] || c.cat}</span></div>
+      <div class="prog-col">
+        <div class="mini-track"><div class="mini-fill" style="width:${pct}%"></div></div>
+        <span class="prog-pct">${pct}%</span>
+      </div>
+      <div class="date-cell">${fmtDate(c.updated_at || c.created_at)}</div>
+      <div><a class="action-link" href="${trackerUrl}" target="_blank">Open ↗</a></div>
+      <div><button class="copy-btn" onclick="copyUrl('${trackerUrl}', this)">Copy link</button></div>
+    </div>`;
+  }).join('');
+
+  list.innerHTML = rows;
+  document.getElementById('s-total').textContent = data.length;
+  document.getElementById('s-avg').textContent = Math.round(totalPct / data.length) + '%';
+  document.getElementById('s-done').textContent = done;
+  document.getElementById('s-zero').textContent = zero;
+}
+
+function copyUrl(url, btn) {
+  navigator.clipboard.writeText(url).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy link', 2000);
+  });
+}
+
+function openModal() {
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('modal-form').style.display = 'block';
+  document.getElementById('modal-result').style.display = 'none';
+  document.getElementById('m-name').value = '';
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function closeAndRefresh() { closeModal(); loadClients(); }
+
+async function createClient() {
+  const name = document.getElementById('m-name').value.trim();
+  const cat = document.getElementById('m-cat').value;
+  if (!name) { alert('Please enter a client name'); return; }
+
+  const id = Math.random().toString(36).substr(2,8).toUpperCase();
+  const payload = { client_id: id, name, cat, doc_state: {}, created_at: new Date().toISOString() };
+
+  await sb.from('trackers').insert(payload);
+
+  newLink = `${window.location.origin}/tracker/?id=${id}`;
+  document.getElementById('new-link').textContent = newLink;
+  document.getElementById('modal-form').style.display = 'none';
+  document.getElementById('modal-result').style.display = 'block';
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(newLink).then(() => {
+    document.querySelector('.link-copy-btn').textContent = 'Copied!';
+  });
+}
+
+loadClients();
+setInterval(loadClients, 30000);
+</script>
+</body>
+</html>
